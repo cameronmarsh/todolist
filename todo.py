@@ -8,12 +8,13 @@ def cli():
 
 
 @cli.command()
+@click.option('-l', '--listname', help='The list to add the task to', prompt='List')
 @click.option('-d', '--due', help="The date which this task is to be completed", prompt="Due")
 @click.option('-s', '--description', help="Description of the task", prompt='Description')
-@click.argument('listname')
-@click.argument('taskname')
+@click.argument('taskname', nargs=-1)
 def add(listname, taskname, due, description):
     '''Add a task to a certain list'''
+
     try:
         with open('todolist.json', 'r') as f:
             data = json.load(f)
@@ -24,14 +25,10 @@ def add(listname, taskname, due, description):
         click.echo("Could not open the JSON file for reading")
         exit(1)
 
-
-    click.echo("number of entries: %s" % data[0])
-
     numTasks = data[0]
     listInfo = data[1]
-    # son = [2, {'list1': {"task1": {"description": "this is task 1", "due": "May 2", "id": 1}, "task2": {"description": "this is task 2", "due": "monday", "id": 2}}}]
-
-    click.echo(listInfo)
+    listname = listname.lower()
+    taskname = " ".join(taskname)
 
     #add the task to the list, create a new list if it doesn't already exist
     if listname not in listInfo:
@@ -41,7 +38,7 @@ def add(listname, taskname, due, description):
             exit(1)
 
 
-    listInfo[listname][taskname] = {"description": description, "due": due, "id": numTasks+1}
+    listInfo[listname][taskname] = {"description": description, "due": due, "id": numTasks+1, "completed": False}
 
     data[0] = data[0] + 1
 
@@ -56,13 +53,9 @@ def add(listname, taskname, due, description):
 
     f.close()
 
-
-    # son = json.load(todoFile)
-
     click.echo('Added task %s (%s) to list %s, due %s' % (taskname, description, listname, due))
 
 @cli.command()
-
 def rm():
     '''Remove a task by its ID'''
 
@@ -71,8 +64,27 @@ def rm():
 #TODO: make an option for sorting the list contents/filter results
 def list():
     '''Output current tasks and lists'''
-    click.secho("Test list:".upper(), fg='green', bold=True)
-    click.echo("    1\t[ ]\tTest task\tthis is a description of the task")
+    try:
+        f = open('todolist.json', 'r')
+        data = json.load(f)
+        f.close()
+    except:
+        click.echo("Could not read the JSON file")
+        exit(1)
+
+    lists = data[1]
+    click.echo()
+    for tasklist in lists:
+         click.secho(tasklist.upper(), fg="green", bold=True)
+         for task in lists[tasklist]:
+             info = lists[tasklist][task]
+             if info['completed']:
+                 comp = 'X'
+             else:
+                 comp = ' '
+             click.echo("%s\t[%s]\t%10s\t%20s\t%s" % (info['id'], completed, info['due'], task, info['description']))
+         click.echo()
+         click.echo()
 
 #TODO: change this so if the file doesn't exist, it generates one and tells the user that it is already empty
 @cli.command()
