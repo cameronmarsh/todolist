@@ -1,6 +1,30 @@
 import click
 import json
 
+
+def readDataFromJson():
+    try:
+        with open('todolist.json', 'r') as f:
+            data = json.load(f)
+        f.close()
+        return data
+    except:
+        click.echo("Could not open the JSON file for reading")
+        return None
+
+def writeDatatoJson(data):
+    try:
+        f = open('todolist.json', 'w')
+    except:
+        click.echo("Could not open the JSON file for writing")
+        exit(1)
+
+    json.dump(data, f, separators=(',', ':'), indent=4)
+    f.close()
+
+
+
+
 @click.group()
 def cli():
     '''Todo-list command line application'''
@@ -58,18 +82,69 @@ def add(listname, taskname, due, description):
 @cli.command()
 def rm():
     '''Remove a task by its ID'''
+    data = readDataFromJson()
 
+    for listName in data[1]:
+        for task in listName:
+            info = data[1][listname][task]
+            if info['id'] == id:
+                del data[1][listname][task]
+
+    writeDatatoJson(data)
+
+@cli.command()
+@click.argument('id')
+def com(id):
+    '''Complete a task by its ID'''
+    data = readDataFromJson()
+
+    found = False
+    for listName in data[1].keys():
+        for task in data[1][listName].keys():
+            info = data[1][listName][task]
+            if info['id'] == int(id):
+                data[1][listName][task]['completed'] = True
+                click.echo("Marked task %s as complete" % id)
+                found = True
+                break;
+        if found:
+            break;
+
+    if not found:
+        click.echo("Could not find task %s" % id)
+
+    writeDatatoJson(data)
+
+@cli.command()
+@click.argument('id')
+def uncom(id):
+    '''Mark a task as uncomplete by its ID'''
+    data = readDataFromJson()
+
+    found = False
+    for listName in data[1].keys():
+        for task in data[1][listName].keys():
+            info = data[1][listName][task]
+            if info['id'] == int(id):
+                data[1][listName][task]['completed'] = False
+                click.echo("Marked task %s as uncomplete" % id)
+                found = True
+                break;
+        if found:
+            break;
+
+    if not found:
+        click.echo("Could not find task %s" % id)
+
+    writeDatatoJson(data)
 
 @cli.command()
 #TODO: make an option for sorting the list contents/filter results
 def list():
     '''Output current tasks and lists'''
-    try:
-        f = open('todolist.json', 'r')
-        data = json.load(f)
-        f.close()
-    except:
-        click.echo("Could not read the JSON file")
+
+    data = readDataFromJson()
+    if data is None:
         exit(1)
 
     lists = data[1]
@@ -82,7 +157,7 @@ def list():
                  comp = 'X'
              else:
                  comp = ' '
-             click.echo("%s\t[%s]\t%10s\t%20s\t%s" % (info['id'], completed, info['due'], task, info['description']))
+             click.echo("%s\t[%s]\t%10s\t%20s\t%s" % (info['id'], comp, info['due'], task, info['description']))
          click.echo()
          click.echo()
 
