@@ -23,6 +23,24 @@ def writeDatatoJson(data):
     f.close()
 
 
+def printList():
+    data = readDataFromJson()
+    if data is None:
+        exit(1)
+
+    lists = data[1]
+    click.echo()
+    for tasklist in lists:
+         click.secho(tasklist.upper(), fg="green", bold=True)
+         for task in lists[tasklist]:
+             info = lists[tasklist][task]
+             if info['completed']:
+                 comp = 'X'
+             else:
+                 comp = ' '
+             click.echo("%s\t[%s]\t%10s\t%-20s\t%s" % (info['id'], comp, info['due'], task, info['description']))
+         click.echo()
+
 
 
 @click.group()
@@ -51,7 +69,7 @@ def add(listname, taskname, due, description):
 
     numTasks = data[0]
     listInfo = data[1]
-    listname = listname.lower()
+    listname = listname.lower().strip()
     taskname = " ".join(taskname)
 
     #add the task to the list, create a new list if it doesn't already exist
@@ -77,20 +95,36 @@ def add(listname, taskname, due, description):
 
     f.close()
 
+    click.echo()
     click.echo('Added task %s (%s) to list %s, due %s' % (taskname, description, listname, due))
+    printList()
 
 @cli.command()
-def rm():
+@click.argument("id")
+def rm(id):
     '''Remove a task by its ID'''
     data = readDataFromJson()
 
+    found = False
     for listName in data[1]:
-        for task in listName:
-            info = data[1][listname][task]
-            if info['id'] == id:
-                del data[1][listname][task]
+        for task in data[1][listName]:
+            info = data[1][listName][task]
+            if info['id'] == int(id):
+                data[1][listName].pop(task, None)
+                if len(data[1][listName]) == 0:
+                    data[1].pop(listName, None)
+                data[0] -= 1
+                found = True
+                break
+        if found:
+            break
 
-    writeDatatoJson(data)
+    if not found:
+        click.echo("Could not find task %s" % id)
+    else:
+        click.echo("Removed task %s" % id)
+        writeDatatoJson(data)
+        printList()
 
 @cli.command()
 @click.argument('id')
@@ -112,8 +146,9 @@ def com(id):
 
     if not found:
         click.echo("Could not find task %s" % id)
-
-    writeDatatoJson(data)
+    else:
+        writeDatatoJson(data)
+        printList()
 
 @cli.command()
 @click.argument('id')
@@ -135,33 +170,17 @@ def uncom(id):
 
     if not found:
         click.echo("Could not find task %s" % id)
-
-    writeDatatoJson(data)
+    else:
+        writeDatatoJson(data)
+        printList()
 
 @cli.command()
 #TODO: make an option for sorting the list contents/filter results
 def list():
     '''Output current tasks and lists'''
+    printList()
 
-    data = readDataFromJson()
-    if data is None:
-        exit(1)
 
-    lists = data[1]
-    click.echo()
-    for tasklist in lists:
-         click.secho(tasklist.upper(), fg="green", bold=True)
-         for task in lists[tasklist]:
-             info = lists[tasklist][task]
-             if info['completed']:
-                 comp = 'X'
-             else:
-                 comp = ' '
-             click.echo("%s\t[%s]\t%10s\t%20s\t%s" % (info['id'], comp, info['due'], task, info['description']))
-         click.echo()
-         click.echo()
-
-#TODO: change this so if the file doesn't exist, it generates one and tells the user that it is already empty
 @cli.command()
 @click.confirmation_option(prompt="Are you sure you want to delete all tasks?")
 def clear():
@@ -184,6 +203,7 @@ def clear():
             f = open('todolist.json', 'w')
             json.dump([0, {}], f, separators=(',', ':'), indent=4)
             f.close()
+            click.echo("Cleared all tasks")
         except IOError:
             click.echo("Could not write to the JSON file")
             exit(1)
