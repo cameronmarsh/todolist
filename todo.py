@@ -4,17 +4,17 @@ import json
 
 def readDataFromJson():
     try:
-        with open('todolist.json', 'r') as f:
+        with open('/home/cameron/todolist.json', 'r') as f:
             data = json.load(f)
         f.close()
         return data
     except:
-        click.echo("Could not open the JSON file for reading")
+        click.echo("Could not open the JSON file for reading!")
         return None
 
 def writeDatatoJson(data):
     try:
-        f = open('todolist.json', 'w')
+        f = open('/home/cameron/todolist.json', 'w+')
     except:
         click.echo("Could not open the JSON file for writing")
         exit(1)
@@ -58,13 +58,14 @@ def add(listname, taskname, due, description):
     '''Add a task to a certain list'''
 
     try:
-        with open('todolist.json', 'r') as f:
+        with open('/home/cameron/todolist.json', 'r') as f:
             data = json.load(f)
         f.close()
-    except ValueError:
+    except (ValueError, IOError):
         data = [0, {}]
     except:
         click.echo("Could not open the JSON file for reading")
+        click.echo(e)
         exit(1)
 
     numTasks = data[0]
@@ -85,15 +86,7 @@ def add(listname, taskname, due, description):
     data[0] = data[0] + 1
 
     #save the new task in the JSON file
-    try:
-        f = open('todolist.json', 'w')
-    except:
-        click.echo("Could not open the JSON file for writing")
-        exit(1)
-
-    json.dump(data, f, separators=(',', ':'), indent=4)
-
-    f.close()
+    writeDatatoJson(data)
 
     click.echo()
     click.echo('Added task %s (%s) to list %s, due %s' % (taskname, description, listname, due))
@@ -123,6 +116,12 @@ def rm(id):
         click.echo("Could not find task %s" % id)
     else:
         click.echo("Removed task %s" % id)
+        #decrement the higher ids
+        for lst in data[1]:
+            for task in data[1][lst]:
+                if data[1][lst][task]['id'] > int(id):
+                    data[1][lst][task]['id'] -= 1
+
         writeDatatoJson(data)
         printList()
 
@@ -186,7 +185,7 @@ def list():
 def clear():
     '''Clear all tasks'''
     try:
-        f = open('todolist.json', 'r')
+        f = open('/home/cameron/todolist.json', 'r')
         data = json.load(f)
         f.close()
     except ValueError as e:
@@ -200,7 +199,7 @@ def clear():
         click.echo("There are no tasks to clear")
     else:
         try:
-            f = open('todolist.json', 'w')
+            f = open('/home/cameron/todolist.json', 'w')
             json.dump([0, {}], f, separators=(',', ':'), indent=4)
             f.close()
             click.echo("Cleared all tasks")
