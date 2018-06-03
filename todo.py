@@ -1,20 +1,33 @@
 import click
 import json
+import datetime
 
 
+########################
+# Helper functions
+########################
+
+'''
+Load the data from the stored JSON file
+'''
 def readDataFromJson():
     try:
-        with open('/home/cameron/todolist.json', 'r') as f:
+        with open('todolist.json', 'r') as f:
             data = json.load(f)
         f.close()
         return data
-    except:
-        click.echo("Could not open the JSON file for reading!")
+    except Exception as e:
+        click.echo("Could not open the JSON file for reading")
+        click.echo(e)
         return None
 
+
+'''
+Write the current data to the JSON file for future reference
+'''
 def writeDatatoJson(data):
     try:
-        f = open('/home/cameron/todolist.json', 'w+')
+        f = open('todolist.json', 'w')
     except:
         click.echo("Could not open the JSON file for writing")
         exit(1)
@@ -23,6 +36,9 @@ def writeDatatoJson(data):
     f.close()
 
 
+'''
+Print the current data in a formatted list
+'''
 def printList():
     data = readDataFromJson()
     if data is None:
@@ -42,6 +58,56 @@ def printList():
          click.echo()
 
 
+'''
+Set the due date of a task
+If there is no second argument, then set the date as the next 'day'
+'''
+def getDate(day):
+	
+	daysFrom = 0
+	day = day.lower()
+	cal = datetime.datetime(1,1,1)
+
+	if day == "today" or day == "tod":
+		tod = cal.today()
+		return tod.strftime("%a %b %d")
+	
+	if day == "tomorrow" or day == "tom":
+		tom = cal.fromordinal(cal.today().date().toordinal() + 1)
+		return tom.strftime("%a %b %d")
+
+	if day == "monday" or day == "mon":
+		daysFrom = 7
+	
+	elif day == "tuesday" or day == "tues":
+		daysFrom = 8
+
+	elif day == "wednesday" or day == "wed":
+		daysFrom = 9
+
+	elif day == "thursday" or day == "thurs":
+		daysFrom = 10
+
+	elif day == "friday" or day == "fri":
+		daysFrom = 11
+
+	elif day == "saturday" or day == "sat":
+		daysFrom = 12
+
+	elif day == "sunday" or day == "sun":
+		daysFrom = 13
+
+	else:
+		return day
+
+	numDays = daysFrom - cal.today().weekday()
+	date = cal.fromordinal(cal.today().date().toordinal() + numDays)
+	return date.strftime("%a %b %d") 	
+		
+
+#######################
+# Click functions
+#######################
 
 @click.group()
 def cli():
@@ -58,14 +124,13 @@ def add(listname, taskname, due, description):
     '''Add a task to a certain list'''
 
     try:
-        with open('/home/cameron/todolist.json', 'r') as f:
+        with open('todolist.json', 'r') as f:
             data = json.load(f)
         f.close()
-    except (ValueError, IOError):
+    except ValueError:
         data = [0, {}]
     except:
         click.echo("Could not open the JSON file for reading")
-        click.echo(e)
         exit(1)
 
     numTasks = data[0]
@@ -81,12 +146,20 @@ def add(listname, taskname, due, description):
             exit(1)
 
 
-    listInfo[listname][taskname] = {"description": description, "due": due, "id": numTasks+1, "completed": False}
+    listInfo[listname][taskname] = {"description": description, "due": getDate(due), "id": numTasks+1, "completed": False}
 
     data[0] = data[0] + 1
 
     #save the new task in the JSON file
-    writeDatatoJson(data)
+    try:
+        f = open('todolist.json', 'w')
+    except:
+        click.echo("Could not open the JSON file for writing")
+        exit(1)
+
+    json.dump(data, f, separators=(',', ':'), indent=4)
+
+    f.close()
 
     click.echo()
     click.echo('Added task %s (%s) to list %s, due %s' % (taskname, description, listname, due))
@@ -116,12 +189,6 @@ def rm(id):
         click.echo("Could not find task %s" % id)
     else:
         click.echo("Removed task %s" % id)
-        #decrement the higher ids
-        for lst in data[1]:
-            for task in data[1][lst]:
-                if data[1][lst][task]['id'] > int(id):
-                    data[1][lst][task]['id'] -= 1
-
         writeDatatoJson(data)
         printList()
 
@@ -151,8 +218,8 @@ def com(id):
 
 @cli.command()
 @click.argument('id')
-def uncom(id):
-    '''Mark a task as uncomplete by its ID'''
+def incom(id):
+    '''Mark a task as incomplete by its ID'''
     data = readDataFromJson()
 
     found = False
@@ -185,7 +252,7 @@ def list():
 def clear():
     '''Clear all tasks'''
     try:
-        f = open('/home/cameron/todolist.json', 'r')
+        f = open('todolist.json', 'r')
         data = json.load(f)
         f.close()
     except ValueError as e:
@@ -199,10 +266,17 @@ def clear():
         click.echo("There are no tasks to clear")
     else:
         try:
-            f = open('/home/cameron/todolist.json', 'w')
+            f = open('todolist.json', 'w')
             json.dump([0, {}], f, separators=(',', ':'), indent=4)
             f.close()
             click.echo("Cleared all tasks")
         except IOError:
             click.echo("Could not write to the JSON file")
             exit(1)
+
+
+@cli.command()
+@click.argument('date')
+def due(date):
+	'''print the date (testing tool)'''
+	click.echo(getate(date))
